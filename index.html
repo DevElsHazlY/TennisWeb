@@ -365,6 +365,54 @@
             border-radius: 8px;
             margin: 10px 0;
         }
+
+        /* أزرار التحكم باللمس */
+        .touch-btn {
+            position: fixed;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            backdrop-filter: blur(5px);
+            z-index: 999;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        #upBtn { 
+            bottom: 120px; 
+            left: 20px; 
+        }
+        
+        #downBtn { 
+            bottom: 50px; 
+            left: 20px; 
+        }
+        
+        @media (max-width: 768px) {
+            .touch-btn {
+                width: 50px;
+                height: 50px;
+                font-size: 20px;
+            }
+            
+            #upBtn { 
+                bottom: 100px; 
+                left: 15px; 
+            }
+            
+            #downBtn { 
+                bottom: 40px; 
+                left: 15px; 
+            }
+        }
     </style>
 </head>
 <body>
@@ -575,6 +623,9 @@
         let roomRef = null;
         let playerMoveRef = null;
         let opponentMoveRef = null;
+
+        // التحقق مما إذا كان الجهاز هاتفًا
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
         
         // إدارة حالة الاتصال
         function showStatus(message) {
@@ -860,12 +911,10 @@
                     // إرسال الحالة الأولية
                     sendGameState();
                     
-                    // الاستماع لتحركات الخصم
+                    // الاستماع لتحركات الخصم (المضرب الأيمن فقط)
                     opponentMoveRef.on('value', (snapshot) => {
                         if (snapshot.exists()) {
-                            if (playerRole === 'left') {
-                                rightPaddleY = snapshot.val();
-                            }
+                            rightPaddleY = snapshot.val();
                         }
                     });
                 } else {
@@ -877,7 +926,6 @@
                         
                         // تحديث حالة اللعبة المحلية
                         leftPaddleY = gameState.leftPaddleY;
-                        rightPaddleY = gameState.rightPaddleY;
                         ballX = gameState.ballX;
                         ballY = gameState.ballY;
                         ballSpeedX = gameState.ballSpeedX;
@@ -893,15 +941,6 @@
                             showWinMessage();
                         }
                     });
-                    
-                    // الاستماع لتحركات الخصم
-                    opponentMoveRef.on('value', (snapshot) => {
-                        if (snapshot.exists()) {
-                            if (playerRole === 'right') {
-                                leftPaddleY = snapshot.val();
-                            }
-                        }
-                    });
                 }
             }).catch((error) => {
                 showError('فشل في بدء اللعبة: ' + error.message);
@@ -913,7 +952,6 @@
             if (isHost && gameStateRef) {
                 gameStateRef.set({
                     leftPaddleY: leftPaddleY,
-                    rightPaddleY: rightPaddleY,
                     ballX: ballX,
                     ballY: ballY,
                     ballSpeedX: ballSpeedX,
@@ -988,300 +1026,362 @@
             pingInterval = setInterval(() => {
                 const now = Date.now();
                 const pingValue = Math.floor(now - lastPingTime);
-                pingElement.textContent = pingValue;
+pingElement.textContent = pingValue;
                 lastPingTime = now;
                 
-                // تحديد حالة الاتصال بناءً على البنج
-                if (pingValue < 100) {
-                    connectionStatus.textContent = 'الاتصال ممتاز';
-                    connectionStatus.style.color = '#4CAF50';
-                } else if (pingValue < 200) {
-                    connectionStatus.textContent = 'الاتصال جيد';
-                    connectionStatus.style.color = '#FFC107';
-                } else {
-                    connectionStatus.textContent = 'الاتصال ضعيف';
-                    connectionStatus.style.color = '#F44336';
-                }
-                
-                // إرسال تحديث البنج
-                if (gameStateRef && isHost) {
-                    gameStateRef.update({ ping: lastPingTime });
-                }
-            }, 1000);
-        }
-        
-        // إنشاء معرف غرفة عشوائي
-        function generateRoomId() {
-            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-            let result = '';
-            for (let i = 0; i < 6; i++) {
-                result += chars.charAt(Math.floor(Math.random() * chars.length));
-            }
-            return result;
-        }
-        
-        // رسم العناصر
-        function draw() {
-            // الخلفية
-            ctx.fillStyle = '#0d1b2a';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            // الخط المنقط في المنتصف
-            ctx.beginPath();
-            ctx.setLineDash([10, 15]);
-            ctx.moveTo(canvas.width / 2, 0);
-            ctx.lineTo(canvas.width / 2, canvas.height);
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-            ctx.lineWidth = 4;
-            ctx.stroke();
-            ctx.setLineDash([]);
-            
-            // المضارب
-            ctx.fillStyle = '#ff9800';
-            ctx.fillRect(20, leftPaddleY, paddleWidth, paddleHeight);
-            
-            ctx.fillStyle = '#2196f3';
-            ctx.fillRect(canvas.width - 20 - paddleWidth, rightPaddleY, paddleWidth, paddleHeight);
-            
-            // الكرة
-            ctx.beginPath();
-            ctx.arc(ballX, ballY, ballSize, 0, Math.PI * 2);
-            ctx.fillStyle = '#e91e63';
-            ctx.fill();
-            ctx.closePath();
-            
-            // الظل
-            ctx.beginPath();
-            ctx.arc(ballX, ballY + 5, ballSize, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-            ctx.fill();
-            ctx.closePath();
-            
-            // النقاط
-            ctx.font = '40px Arial';
-            ctx.fillStyle = '#ffcc00';
-            ctx.textAlign = 'center';
-            ctx.fillText(leftScore + ' - ' + rightScore, canvas.width / 2, 50);
-        }
-        
-        // تحديث حالة اللعبة
-        function update() {
-            if (!gameRunning) return;
-            
-            // حركة الكرة (للمضيف فقط في الأونلاين)
-            if (gameMode !== 'online' || isHost) {
-                ballX += ballSpeedX;
-                ballY += ballSpeedY;
-                
-                // ارتداد الكرة من الأعلى والأسفل
-                if (ballY + ballSize > canvas.height || ballY - ballSize < 0) {
-                    ballSpeedY = -ballSpeedY;
-                }
-                
-                // ارتداد الكرة من المضارب
-                if (ballX - ballSize < 30 && ballY > leftPaddleY && ballY < leftPaddleY + paddleHeight) {
-                    // زيادة الصعوبة مع زيادة سرعة الكرة
-                    const relativeY = (ballY - (leftPaddleY + paddleHeight / 2)) / (paddleHeight / 2);
-                    ballSpeedX = -ballSpeedX * 1.05;
-                    ballSpeedY = relativeY * 8;
-                }
-                
-                if (ballX + ballSize > canvas.width - 30 && ballY > rightPaddleY && ballY < rightPaddleY + paddleHeight) {
-                    const relativeY = (ballY - (rightPaddleY + paddleHeight / 2)) / (paddleHeight / 2);
-                    ballSpeedX = -ballSpeedX * 1.05;
-                    ballSpeedY = relativeY * 8;
-                }
-                
-                // تسجيل النقاط
-                if (ballX - ballSize < 0) {
-                    rightScore++;
-                    rightScoreElement.textContent = rightScore;
-                    resetBall();
-                }
-                
-                if (ballX + ballSize > canvas.width) {
-                    leftScore++;
-                    leftScoreElement.textContent = leftScore;
-                    resetBall();
-                }
-            }
-            
-            // تحريك المضارب
-            leftPaddleY += leftPaddleSpeed;
-            rightPaddleY += rightPaddleSpeed;
-            
-            // منع المضارب من الخروج من الشاشة
-            if (leftPaddleY < 0) leftPaddleY = 0;
-            if (leftPaddleY + paddleHeight > canvas.height) leftPaddleY = canvas.height - paddleHeight;
-            
-            if (rightPaddleY < 0) rightPaddleY = 0;
-            if (rightPaddleY + paddleHeight > canvas.height) rightPaddleY = canvas.height - paddleHeight;
-            
-            // إرسال تحركات اللاعب للأونلاين
-            if (gameMode === 'online' && playerMoveRef) {
-                if (playerRole === 'left') {
-                    playerMoveRef.set(leftPaddleY);
-                } else {
-                    playerMoveRef.set(rightPaddleY);
-                }
-            }
-            
-            // الذكاء الاصطناعي (للعبة المحلية فقط)
-            if (gameMode === 'single' || gameMode === 'ai') {
-                // الذكاء الاصطناعي للمضرب الأيمن (الخصم)
-                const aiPaddleCenter = rightPaddleY + paddleHeight / 2;
-                const ballCenter = ballY;
-                const reactionThreshold = 0.3; // يتحرك فقط إذا كانت الكرة قريبة
-                
-                if (ballSpeedX > 0) { // الكرة تتحرك نحو الخصم
-                    if (aiPaddleCenter < ballCenter - paddleHeight * reactionThreshold) {
-                        rightPaddleY += 6;
-                    } else if (aiPaddleCenter > ballCenter + paddleHeight * reactionThreshold) {
-                        rightPaddleY -= 6;
-                    }
-                } else {
-                    // العودة إلى المركز عندما لا تكون الكرة قادمة
-                    const center = canvas.height / 2 - paddleHeight / 2;
-                    if (rightPaddleY < center) {
-                        rightPaddleY += 3;
-                    } else if (rightPaddleY > center) {
-                        rightPaddleY -= 3;
-                    }
-                }
-            }
-            
-            if (gameMode === 'ai') {
-                // الذكاء الاصطناعي للمضرب الأيسر (اللاعب)
-                const aiPaddleCenter = leftPaddleY + paddleHeight / 2;
-                const ballCenter = ballY;
-                const reactionThreshold = 0.3;
-                
-                if (ballSpeedX < 0) { // الكرة تتحرك نحو اللاعب
-                    if (aiPaddleCenter < ballCenter - paddleHeight * reactionThreshold) {
-                        leftPaddleY += 6;
-                    } else if (aiPaddleCenter > ballCenter + paddleHeight * reactionThreshold) {
-                        leftPaddleY -= 6;
-                    }
-                } else {
-                    // العودة إلى المركز
-                    const center = canvas.height / 2 - paddleHeight / 2;
-                    if (leftPaddleY < center) {
-                        leftPaddleY += 3;
-                    } else if (leftPaddleY > center) {
-                        leftPaddleY -= 3;
-                    }
-                }
-            }
-            
-            // مزامنة حالة اللعبة للأونلاين (المضيف فقط)
-            if (gameMode === 'online' && isHost && gameStateRef) {
-                sendGameState();
-            }
-            
-            // التحقق من الفوز
-            if (leftScore >= winningScore || rightScore >= winningScore) {
-                gameRunning = false;
-                showWinMessage();
-            }
-        }
-        
-        // إعادة ضبط الكرة
-        function resetBall() {
-            ballX = canvas.width / 2;
-            ballY = canvas.height / 2;
-            
-            // اتجاه عشوائي للكرة
-            ballSpeedX = (Math.random() > 0.5 ? 1 : -1) * 6;
-            ballSpeedY = (Math.random() * 4 - 2);
-        }
-        
-        // إعادة ضبط اللعبة
-        function resetGame() {
-            leftScore = 0;
-            rightScore = 0;
-            leftScoreElement.textContent = leftScore;
-            rightScoreElement.textContent = rightScore;
-            
-            leftPaddleY = canvas.height / 2 - paddleHeight / 2;
-            rightPaddleY = canvas.height / 2 - paddleHeight / 2;
-            
-            resetBall();
-            gameRunning = true;
-            
-            // إرسال الحالة الجديدة للأونلاين
-            if (gameMode === 'online' && isHost && gameStateRef) {
-                sendGameState();
-            }
-        }
-        
-        // عرض رسالة الفوز
-        function showWinMessage() {
-            if (leftScore >= winningScore) {
-                winnerText.textContent = `مبروك! ${playerName} فاز`;
-                winnerText.style.color = '#ff9800';
+            // تحديد حالة الاتصال بناءً على البنج
+            if (pingValue < 100) {
+                connectionStatus.textContent = 'الاتصال ممتاز';
+                connectionStatus.style.color = '#4CAF50';
+            } else if (pingValue < 200) {
+                connectionStatus.textContent = 'الاتصال جيد';
+                connectionStatus.style.color = '#FFC107';
             } else {
-                winnerText.textContent = `${opponentName} فاز`;
-                winnerText.style.color = '#2196f3';
+                connectionStatus.textContent = 'الاتصال ضعيف';
+                connectionStatus.style.color = '#F44336';
             }
             
-            winScore.textContent = `النتيجة النهائية: ${leftScore} - ${rightScore}`;
-            winMessage.classList.add('show');
+            // إرسال تحديث البنج
+            if (gameStateRef && isHost) {
+                gameStateRef.update({ ping: lastPingTime });
+            }
+        }, 1000);
+    }
+    
+    // إنشاء معرف غرفة عشوائي
+    function generateRoomId() {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let result = '';
+        for (let i = 0; i < 6; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
+    }
+    
+    // رسم العناصر
+    function draw() {
+        // الخلفية
+        ctx.fillStyle = '#0d1b2a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // الخط المنقط في المنتصف
+        ctx.beginPath();
+        ctx.setLineDash([10, 15]);
+        ctx.moveTo(canvas.width / 2, 0);
+        ctx.lineTo(canvas.width / 2, canvas.height);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.lineWidth = 4;
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        // المضرب الأيسر (تدرج لوني مع حدود)
+        const leftPaddleGradient = ctx.createLinearGradient(20, leftPaddleY, 20, leftPaddleY + paddleHeight);
+        leftPaddleGradient.addColorStop(0, '#ff9800');
+        leftPaddleGradient.addColorStop(1, '#f57c00');
+        ctx.fillStyle = leftPaddleGradient;
+        ctx.fillRect(20, leftPaddleY, paddleWidth, paddleHeight);
+        ctx.strokeStyle = '#ff5722';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(20, leftPaddleY, paddleWidth, paddleHeight);
+        
+        // المضرب الأيمن (تدرج لوني مع حدود)
+        const rightPaddleGradient = ctx.createLinearGradient(
+            canvas.width - 20 - paddleWidth, 
+            rightPaddleY, 
+            canvas.width - 20 - paddleWidth, 
+            rightPaddleY + paddleHeight
+        );
+        rightPaddleGradient.addColorStop(0, '#2196f3');
+        rightPaddleGradient.addColorStop(1, '#1976d2');
+        ctx.fillStyle = rightPaddleGradient;
+        ctx.fillRect(canvas.width - 20 - paddleWidth, rightPaddleY, paddleWidth, paddleHeight);
+        ctx.strokeStyle = '#1565c0';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(canvas.width - 20 - paddleWidth, rightPaddleY, paddleWidth, paddleHeight);
+        
+        // الكرة مع تأثير ثلاثي الأبعاد
+        ctx.beginPath();
+        ctx.arc(ballX, ballY, ballSize, 0, Math.PI * 2);
+        const ballGradient = ctx.createRadialGradient(
+            ballX - 3, ballY - 3, 0,
+            ballX, ballY, ballSize
+        );
+        ballGradient.addColorStop(0, '#e91e63');
+        ballGradient.addColorStop(1, '#c2185b');
+        ctx.fillStyle = ballGradient;
+        ctx.fill();
+        ctx.closePath();
+        
+        // الظل تحت الكرة
+        ctx.beginPath();
+        ctx.ellipse(ballX, ballY + ballSize + 3, ballSize - 2, ballSize/3, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.fill();
+        ctx.closePath();
+        
+        // النقاط
+        ctx.font = 'bold 40px Arial';
+        ctx.fillStyle = '#ffcc00';
+        ctx.textAlign = 'center';
+        ctx.fillText(leftScore + ' - ' + rightScore, canvas.width / 2, 50);
+    }
+    
+    // تحديث حالة اللعبة
+    function update() {
+        if (!gameRunning) return;
+        
+        // حركة الكرة (للمضيف فقط في الأونلاين)
+        if (gameMode !== 'online' || isHost) {
+            ballX += ballSpeedX;
+            ballY += ballSpeedY;
             
-            // إيقاف اللعبة
+            // ارتداد الكرة من الأعلى والأسفل
+            if (ballY + ballSize > canvas.height || ballY - ballSize < 0) {
+                ballSpeedY = -ballSpeedY;
+            }
+            
+            // ارتداد الكرة من المضارب
+            if (ballX - ballSize < 30 && ballY > leftPaddleY && ballY < leftPaddleY + paddleHeight) {
+                const relativeY = (ballY - (leftPaddleY + paddleHeight / 2)) / (paddleHeight / 2);
+                ballSpeedX = -ballSpeedX * 1.05;
+                ballSpeedY = relativeY * 8;
+            }
+            
+            if (ballX + ballSize > canvas.width - 30 && ballY > rightPaddleY && ballY < rightPaddleY + paddleHeight) {
+                const relativeY = (ballY - (rightPaddleY + paddleHeight / 2)) / (paddleHeight / 2);
+                ballSpeedX = -ballSpeedX * 1.05;
+                ballSpeedY = relativeY * 8;
+            }
+            
+            // تسجيل النقاط
+            if (ballX - ballSize < 0) {
+                rightScore++;
+                rightScoreElement.textContent = rightScore;
+                resetBall();
+            }
+            
+            if (ballX + ballSize > canvas.width) {
+                leftScore++;
+                leftScoreElement.textContent = leftScore;
+                resetBall();
+            }
+        }
+        
+        // تحريك المضارب
+        leftPaddleY += leftPaddleSpeed;
+        rightPaddleY += rightPaddleSpeed;
+        
+        // منع المضارب من الخروج من الشاشة
+        if (leftPaddleY < 0) leftPaddleY = 0;
+        if (leftPaddleY + paddleHeight > canvas.height) leftPaddleY = canvas.height - paddleHeight;
+        
+        if (rightPaddleY < 0) rightPaddleY = 0;
+        if (rightPaddleY + paddleHeight > canvas.height) rightPaddleY = canvas.height - paddleHeight;
+        
+        // إرسال تحركات اللاعب للأونلاين
+        if (gameMode === 'online' && playerMoveRef) {
+            if (playerRole === 'left') {
+                playerMoveRef.set(leftPaddleY);
+            } else {
+                playerMoveRef.set(rightPaddleY);
+            }
+        }
+        
+        // الذكاء الاصطناعي (للعبة المحلية فقط)
+        if (gameMode === 'single' || gameMode === 'ai') {
+            // الذكاء الاصطناعي للمضرب الأيمن (الخصم)
+            const aiPaddleCenter = rightPaddleY + paddleHeight / 2;
+            const ballCenter = ballY;
+            const reactionThreshold = 0.3; // يتحرك فقط إذا كانت الكرة قريبة
+            
+            if (ballSpeedX > 0) { // الكرة تتحرك نحو الخصم
+                if (aiPaddleCenter < ballCenter - paddleHeight * reactionThreshold) {
+                    rightPaddleY += 6;
+                } else if (aiPaddleCenter > ballCenter + paddleHeight * reactionThreshold) {
+                    rightPaddleY -= 6;
+                }
+            } else {
+                // العودة إلى المركز عندما لا تكون الكرة قادمة
+                const center = canvas.height / 2 - paddleHeight / 2;
+                if (rightPaddleY < center) {
+                    rightPaddleY += 3;
+                } else if (rightPaddleY > center) {
+                    rightPaddleY -= 3;
+                }
+            }
+        }
+        
+        if (gameMode === 'ai') {
+            // الذكاء الاصطناعي للمضرب الأيسر (اللاعب)
+            const aiPaddleCenter = leftPaddleY + paddleHeight / 2;
+            const ballCenter = ballY;
+            const reactionThreshold = 0.3;
+            
+            if (ballSpeedX < 0) { // الكرة تتحرك نحو اللاعب
+                if (aiPaddleCenter < ballCenter - paddleHeight * reactionThreshold) {
+                    leftPaddleY += 6;
+                } else if (aiPaddleCenter > ballCenter + paddleHeight * reactionThreshold) {
+                    leftPaddleY -= 6;
+                }
+            } else {
+                // العودة إلى المركز
+                const center = canvas.height / 2 - paddleHeight / 2;
+                if (leftPaddleY < center) {
+                    leftPaddleY += 3;
+                } else if (leftPaddleY > center) {
+                    leftPaddleY -= 3;
+                }
+            }
+        }
+        
+        // مزامنة حالة اللعبة للأونلاين (المضيف فقط)
+        if (gameMode === 'online' && isHost && gameStateRef) {
+            sendGameState();
+        }
+        
+        // التحقق من الفوز
+        if (leftScore >= winningScore || rightScore >= winningScore) {
             gameRunning = false;
+            showWinMessage();
+        }
+    }
+    
+    // إعادة ضبط الكرة
+    function resetBall() {
+        ballX = canvas.width / 2;
+        ballY = canvas.height / 2;
+        
+        // اتجاه عشوائي للكرة
+        ballSpeedX = (Math.random() > 0.5 ? 1 : -1) * 6;
+        ballSpeedY = (Math.random() * 4 - 2);
+    }
+    
+    // إعادة ضبط اللعبة
+    function resetGame() {
+        leftScore = 0;
+        rightScore = 0;
+        leftScoreElement.textContent = leftScore;
+        rightScoreElement.textContent = rightScore;
+        
+        leftPaddleY = canvas.height / 2 - paddleHeight / 2;
+        rightPaddleY = canvas.height / 2 - paddleHeight / 2;
+        
+        resetBall();
+        gameRunning = true;
+        
+        // إرسال الحالة الجديدة للأونلاين
+        if (gameMode === 'online' && isHost && gameStateRef) {
+            sendGameState();
+        }
+    }
+    
+    // عرض رسالة الفوز
+    function showWinMessage() {
+        if (leftScore >= winningScore) {
+            winnerText.textContent = `مبروك! ${playerName} فاز`;
+            winnerText.style.color = '#ff9800';
+        } else {
+            winnerText.textContent = `${opponentName} فاز`;
+            winnerText.style.color = '#2196f3';
         }
         
-        // حلقة اللعبة الرئيسية
-        function gameLoop() {
-            draw();
-            update();
-            requestAnimationFrame(gameLoop);
+        winScore.textContent = `النتيجة النهائية: ${leftScore} - ${rightScore}`;
+        winMessage.classList.add('show');
+        
+        // إيقاف اللعبة
+        gameRunning = false;
+    }
+    
+    // حلقة اللعبة الرئيسية
+    function gameLoop() {
+        draw();
+        update();
+        requestAnimationFrame(gameLoop);
+    }
+    
+    // أحداث لوحة المفاتيح
+    document.addEventListener('keydown', function(event) {
+        // التحكم بالمضرب الأيسر (اللاعب)
+        if (gameMode !== 'online' || playerRole === 'left') {
+            if (event.key === 'ArrowUp') {
+                leftPaddleSpeed = -8;
+            } else if (event.key === 'ArrowDown') {
+                leftPaddleSpeed = 8;
+            }
         }
         
-        // أحداث لوحة المفاتيح
-        document.addEventListener('keydown', function(event) {
-            // التحكم بالمضرب الأيسر (اللاعب)
-            if (gameMode !== 'online' || playerRole === 'left') {
-                if (event.key === 'ArrowUp') {
-                    leftPaddleSpeed = -8;
-                } else if (event.key === 'ArrowDown') {
-                    leftPaddleSpeed = 8;
-                }
+        // التحكم بالمضرب الأيمن (في وضع اللاعبين أو الأونلاين)
+        if (gameMode === 'multi' || (gameMode === 'online' && playerRole === 'right')) {
+            if (event.key === 'w' || event.key === 'W') {
+                rightPaddleSpeed = -8;
+            } else if (event.key === 's' || event.key === 'S') {
+                rightPaddleSpeed = 8;
             }
-            
-            // التحكم بالمضرب الأيمن (في وضع اللاعبين أو الأونلاين)
-            if (gameMode === 'multi' || (gameMode === 'online' && playerRole === 'right')) {
-                if (event.key === 'w' || event.key === 'W') {
-                    rightPaddleSpeed = -8;
-                } else if (event.key === 's' || event.key === 'S') {
-                    rightPaddleSpeed = 8;
-                }
+        }
+    });
+    
+    document.addEventListener('keyup', function(event) {
+        if (gameMode !== 'online' || playerRole === 'left') {
+            if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+                leftPaddleSpeed = 0;
+            }
+        }
+        
+        if (gameMode === 'multi' || (gameMode === 'online' && playerRole === 'right')) {
+            if (event.key === 'w' || event.key === 'W' || event.key === 's' || event.key === 'S') {
+                rightPaddleSpeed = 0;
+            }
+        }
+    });
+    
+    // إضافة أزرار التحكم باللمس للهواتف
+    if (isMobile) {
+        const touchControls = document.createElement('div');
+        touchControls.id = 'touchControls';
+        touchControls.innerHTML = `
+            <button id="upBtn" class="touch-btn">▲</button>
+            <button id="downBtn" class="touch-btn">▼</button>
+        `;
+        document.body.appendChild(touchControls);
+        
+        const upBtn = document.getElementById('upBtn');
+        const downBtn = document.getElementById('downBtn');
+        
+        // التحكم بالمضرب الأيسر
+        if (gameMode !== 'online' || playerRole === 'left') {
+            upBtn.addEventListener('touchstart', () => leftPaddleSpeed = -8);
+            upBtn.addEventListener('touchend', () => leftPaddleSpeed = 0);
+            downBtn.addEventListener('touchstart', () => leftPaddleSpeed = 8);
+            downBtn.addEventListener('touchend', () => leftPaddleSpeed = 0);
+        }
+        
+        // التحكم بالمضرب الأيمن
+        if (gameMode === 'multi' || (gameMode === 'online' && playerRole === 'right')) {
+            upBtn.addEventListener('touchstart', () => rightPaddleSpeed = -8);
+            upBtn.addEventListener('touchend', () => rightPaddleSpeed = 0);
+            downBtn.addEventListener('touchstart', () => rightPaddleSpeed = 8);
+            downBtn.addEventListener('touchend', () => rightPaddleSpeed = 0);
+        }
+        
+        // إظهار أزرار التحكم عند بدء اللعبة
+        gameContainer.addEventListener('DOMNodeInserted', () => {
+            if (gameContainer.classList.contains('hidden')) {
+                touchControls.style.display = 'none';
+            } else {
+                touchControls.style.display = 'block';
             }
         });
-        
-        document.addEventListener('keyup', function(event) {
-            if (gameMode !== 'online' || playerRole === 'left') {
-                if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-                    leftPaddleSpeed = 0;
-                }
-            }
-            
-            if (gameMode === 'multi' || (gameMode === 'online' && playerRole === 'right')) {
-                if (event.key === 'w' || event.key === 'W' || event.key === 's' || event.key === 'S') {
-                    rightPaddleSpeed = 0;
-                }
-            }
-        });
-        
-        // تنظيف عند إغلاق الصفحة
-        window.addEventListener('beforeunload', function() {
-            if (gameMode === 'online') {
-                leaveOnlineRoom();
-            }
-        });
-        
-        // بدء حلقة اللعبة
-        gameLoop();
-    </script>
+    }
+    
+    // تنظيف عند إغلاق الصفحة
+    window.addEventListener('beforeunload', function() {
+        if (gameMode === 'online') {
+            leaveOnlineRoom();
+        }
+    });
+    
+    // بدء حلقة اللعبة
+    gameLoop();
+</script>
 </body>
 </html>
